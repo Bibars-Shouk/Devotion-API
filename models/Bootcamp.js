@@ -3,118 +3,124 @@ const slugify = require("slugify");
 const geocoder = require("../utils/geocoder");
 const Schema = mongoose.Schema;
 
-const BootcampSchema = new Schema({
-  name: {
-    type: String,
-    required: [true, "Please add a name"],
-    unique: true,
-    trim: true,
-    maxlength: [50, "Name can not be more that 50 character"],
-  },
-  slug: {
-    type: String,
-  },
-  description: {
-    type: String,
-    required: [true, "Please add a description"],
-    maxlength: [500, "Description can not be more that 500 character"],
-  },
-  website: {
-    type: String,
-    match: [
-      /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
-      "Please use a valid URL with HTTP or HTTPS",
-    ],
-  },
-  phone: {
-    type: String,
-    maxlength: [20, "Phone number can not be longer than 20 characters"],
-  },
-  email: {
-    type: String,
-    match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      "Please add a valid email",
-    ],
-  },
-  address: {
-    type: String,
-    required: [true, "Please add an address"],
-  },
-  location: {
-    //   @desc GeoJSON Point
-    type: {
+const BootcampSchema = new Schema(
+  {
+    name: {
       type: String,
-      enum: ["Point"],
+      required: [true, "Please add a name"],
+      unique: true,
+      trim: true,
+      maxlength: [50, "Name can not be more that 50 character"],
     },
-    coordinates: {
-      type: [Number],
-      index: "2dsphere",
-    },
-    formattedAddress: {
+    slug: {
       type: String,
     },
-    street: {
+    description: {
       type: String,
+      required: [true, "Please add a description"],
+      maxlength: [500, "Description can not be more that 500 character"],
     },
-    city: {
+    website: {
       type: String,
+      match: [
+        /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/,
+        "Please use a valid URL with HTTP or HTTPS",
+      ],
     },
-    state: {
+    phone: {
       type: String,
+      maxlength: [20, "Phone number can not be longer than 20 characters"],
     },
-    zipcode: {
+    email: {
       type: String,
+      match: [
+        /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
+        "Please add a valid email",
+      ],
     },
-    country: {
+    address: {
       type: String,
+      required: [true, "Please add an address"],
+    },
+    location: {
+      //   @desc GeoJSON Point
+      type: {
+        type: String,
+        enum: ["Point"],
+      },
+      coordinates: {
+        type: [Number],
+        index: "2dsphere",
+      },
+      formattedAddress: {
+        type: String,
+      },
+      street: {
+        type: String,
+      },
+      city: {
+        type: String,
+      },
+      state: {
+        type: String,
+      },
+      zipcode: {
+        type: String,
+      },
+      country: {
+        type: String,
+      },
+    },
+    careers: {
+      type: [String],
+      required: true,
+      enum: [
+        "Web Development",
+        "Mobile Development",
+        "UI/UX",
+        "Data Science",
+        "Business",
+        "Other",
+      ],
+    },
+    averageRating: {
+      type: Number,
+      min: [1, "Rating must be at least 1"],
+      max: [10, "Rating can not be more than 10"],
+    },
+    averageCost: {
+      type: Number,
+    },
+    photo: {
+      type: String,
+      default: "no-photo.jpg",
+    },
+    housing: {
+      type: Boolean,
+      default: false,
+    },
+    jobAssistance: {
+      type: Boolean,
+      default: false,
+    },
+    jobGuarantee: {
+      type: Boolean,
+      default: false,
+    },
+    acceptGi: {
+      type: Boolean,
+      default: false,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
-  careers: {
-    type: [String],
-    required: true,
-    enum: [
-      "Web Development",
-      "Mobile Development",
-      "UI/UX",
-      "Data Science",
-      "Business",
-      "Other",
-    ],
-  },
-  averageRating: {
-    type: Number,
-    min: [1, "Rating must be at least 1"],
-    max: [10, "Rating can not be more than 10"],
-  },
-  averageCost: {
-    type: Number,
-  },
-  photo: {
-    type: String,
-    default: "no-photo.jpg",
-  },
-  housing: {
-    type: Boolean,
-    default: false,
-  },
-  jobAssistance: {
-    type: Boolean,
-    default: false,
-  },
-  jobGuarantee: {
-    type: Boolean,
-    default: false,
-  },
-  acceptGi: {
-    type: Boolean,
-    default: false,
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
+);
 
 // * Mongoose Middleware/hooks
 
@@ -142,6 +148,20 @@ BootcampSchema.pre("save", async function (next) {
   this.address = undefined;
 
   next();
+});
+
+// Cascade delete courses when a bootcamp is deleted
+BootcampSchema.pre("remove", async function (next) {
+  await this.model("Course").deleteMany({ bootcamp: this._id });
+  next();
+});
+
+// Reverse populate with virtuals
+BootcampSchema.virtual("courses", {
+  ref: "Course",
+  localField: "_id",
+  foreignField: "bootcamp",
+  justOne: false,
 });
 
 module.exports = mongoose.model("Bootcamp", BootcampSchema);
